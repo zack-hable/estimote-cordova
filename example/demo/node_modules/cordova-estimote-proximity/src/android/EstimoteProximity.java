@@ -12,6 +12,8 @@ import org.apache.cordova.PluginResult;
 import org.apache.cordova.PluginResult.Status;
 // Android Libs
 import android.util.Log;
+import android.app.Activity;
+import android.content.Context;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -25,6 +27,8 @@ import com.estimote.mustard.rx_goodness.rx_requirements_wizard.RequirementsWizar
 import com.estimote.proximity_sdk.proximity.EstimoteCloudCredentials;
 import com.estimote.proximity_sdk.proximity.ProximityObserver;
 import com.estimote.proximity_sdk.proximity.ProximityObserverBuilder;
+import com.estimote.proximity_sdk.proximity.ProximityZone;
+import com.estimote.proximity_sdk.proximity.ProximityAttachment;
 
 public class EstimoteProximity extends CordovaPlugin {
 	
@@ -36,6 +40,9 @@ public class EstimoteProximity extends CordovaPlugin {
 	private static boolean hasBluetoothAccess = false;
 	private static EstimoteCloudCredentials cloudCredentials = null;
 	private static List<ProximityObserver> proximityObservers = null;
+	private static List<ProximityObserver.Handler> proximityHandlers = null;
+	private static List<CallbackContext> proximityCallbacks = null;
+
 	
 	/**
      * Sets the context of the Command. This can then be used to do things like
@@ -48,8 +55,10 @@ public class EstimoteProximity extends CordovaPlugin {
 		super.initialize(cordova, webView);
 		Log.d(PLUGIN_NAME, "Initializing Estimote Proximity class...");
 		appActivity = cordova.getActivity();
-		appContext = cordova.getContext();
+		appContext = appActivity.getApplicationContext();
 		proximityObservers = new ArrayList();
+		proximityHandlers = new ArrayList();
+		proximityCallbacks = new ArrayList();
 	}
 	
 	/**
@@ -74,7 +83,15 @@ public class EstimoteProximity extends CordovaPlugin {
 			callbackContext.sendPluginResult(new PluginResult(Status.OK, hasCloudCredentials()));
 		}
 		else if ("buildProximityObserver".equals(action)) {
-			callbackContext.sendPluginResult(new PluginResult(Status.OK, buildProximityObserver(args)));
+			callbackContext.sendPluginResult(new PluginResult(Status.OK, buildProximityObserver()));
+		}
+		else if ("startProximityObserver".equals(action)) {
+			PluginResult start = new PluginResult(Status.OK, startProximityObserver(args, callbackContext));
+			start.setKeepCallback(true);
+			callbackContext.sendPluginResult(start);
+		}
+		else if ("stopProximityObserver".equals(action)) {
+			callbackContext.sendPluginResult(new PluginResult(Status.OK, stopProximityObserverHandler(args)));
 		}
 		else { // endpoint doesn't exist
 			return false;
@@ -85,37 +102,73 @@ public class EstimoteProximity extends CordovaPlugin {
 	
 	/*** PLUGIN FUNCTIONS ***/
 	
-	private int buildProximityObserver(JSONArray args) {
+	private int buildProximityObserver() {
 		if (!hasBluetoothAccess()) {
 			getBluetoothPermissions();
 		}
 		if (hasCloudCredentials()) {
-			try {
-				proximityObservers.add(ProximityObserverBuilder(appContext, cloudCredentials)
-                .withAnalyticsReportingDisabled()
-                .withTelemetryReportingDisabled()
-                .build());
+			try {			
+				ProximityObserver proximityObserver = new ProximityObserverBuilder(appContext, cloudCredentials)
+                .withBalancedPowerMode()
+                .build();
+
+				proximityObservers.add(proximityObserver);
+				proximityHandlers.add(null);
+				proximityCallbacks.add(null);
 				return proximityObservers.size()-1;
 			}
-			catch (JSONException e) {
-				Log.e(PLUGIN_NAME, e.getStackTrace());
+			catch (Exception e) {
+				Log.e(PLUGIN_NAME, e.getStackTrace().toString());
 			}
 		}
 		return -1;
 	}
 	
-	private boolean startProximityObserver(JSONArray args) {
+	private boolean startProximityObserver(JSONArray args, CallbackContext callbackContext) {
 		try {
 			int pid = args.getInt(0);
 			if (isValidPid(pid)) {
-				proximityObservers.get(i).start();
+				if (proximityObservers.get(pid) != null) {
+					String attachKey = args.getString(1);
+					String attachValue = args.getString(2);
+					proximityCallbacks.set(pid, callbackContext);
+					
+					ProximityZone beaconZone = proximityObservers.get(pid).zoneBuilder()
+					.forAttachmentKeyAndValue(attachKey, attachValue)
+					.inFarRange()
+					.withOnEnterAction(new Function1<ProximityAttachment, Unit>() {
+						@Override 
+						public Unit invoke(ProximityAttachment proximityAttachment) {
+							Log.d(PLUGIN_NAME, "entered zone!");
+							PluginResult update = new PluginResult(Status.OK, "enter");
+							update.setKeepCallback(true);
+							proximityCallbacks.get(pid).sendPluginResult(update);
+							return null;
+						}
+					})
+					.withOnExitAction(new Function1<ProximityAttachment, Unit>() {
+						@Override 
+						public Unit invoke(ProximityAttachment proximityAttachment) {
+							Log.d(PLUGIN_NAME, "exited zone!");
+							PluginResult update = new PluginResult(Status.OK, "exit");
+							update.setKeepCallback(true);
+							proximityCallbacks.get(pid).sendPluginResult(update);
+							return null;
+						}
+					})
+					.create();
+					
+					proximityObservers.get(pid).addProximityZones(beaconZone);
+				
+					proximityHandlers.set(pid, proximityObservers.get(pid).start());
+				}
 			}
 			else {
 				return false;
 			}
 		}
 		catch (JSONException e) {
-			Log.e(PLUGIN_NAME, e.getStackTrace());
+			Log.e(PLUGIN_NAME, e.getStackTrace().toString());
 			return false;
 		}
 		return true;
@@ -123,7 +176,25 @@ public class EstimoteProximity extends CordovaPlugin {
 	
 	
 	private boolean stopProximityObserverHandler(JSONArray args) {
-		
+		try {
+			int pid = args.getInt(0);
+			if (isValidPid(pid)) {
+				proximityHandlers.get(pid).stop();
+				proximityHandlers.set(pid, null);
+				proximityObservers.set(pid, null);
+				PluginResult finish = new PluginResult(Status.NO_RESULT);
+                finish.setKeepCallback(false);
+                proximityCallbacks.get(pid).sendPluginResult(finish);
+			}
+			else {
+				return false;
+			}
+		}
+		catch (JSONException e) {
+			Log.e(PLUGIN_NAME, e.getStackTrace().toString());
+			return false;
+		}
+		return true;
 	}
 	
 	private boolean isValidPid(int pid) {
@@ -148,7 +219,7 @@ public class EstimoteProximity extends CordovaPlugin {
 			cloudCredentials = new EstimoteCloudCredentials(appId, appToken);
 		}
 		catch (JSONException e) {
-			Log.e(PLUGIN_NAME, e.getStackTrace());
+			Log.e(PLUGIN_NAME, e.getStackTrace().toString());
 			return false;
 		}
 		return true;

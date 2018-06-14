@@ -9,6 +9,21 @@ function EstimoteProximity() {
 	this.hasSystemPermissions = function(onSuccess, onError) {
 		exec(onSuccess, onError, PLUGIN_NAME, 'hasSystemPermissions', []);
 	};
+	this.setCloudCredentials = function(appId, appToken, onSuccess, onError) {
+		exec(onSuccess, onError, PLUGIN_NAME, 'setCloudCredentials', [appId, appToken]);
+	};
+	this.hasCloudCredentials = function(onSuccess, onError) {
+		exec(onSuccess, onError, PLUGIN_NAME, 'hasCloudCredentials', []);
+	};
+	this.buildProximityObserver = function(onSuccess, onError) {
+		exec(onSuccess, onError, PLUGIN_NAME, 'buildProximityObserver', []);
+	};
+	this.startProximityObserver = function(pid, attachKey, attachVal, onSuccess, onError) {
+		exec(onSuccess, onError, PLUGIN_NAME, 'startProximityObserver', [pid, attachKey, attachVal]);
+	};
+	this.stopProximityObserver = function(pid, onSuccess, onError) {
+		exec(onSuccess, onError, PLUGIN_NAME, 'stopProximityObserver', [pid]);
+	};
 }
 
 EstimoteProximity.install = function() {

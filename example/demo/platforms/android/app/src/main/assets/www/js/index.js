@@ -22,12 +22,24 @@ var app = {
         document.addEventListener('deviceready', this.onDeviceReady.bind(this), false);
     },
 	
-	startScanner: function(resp) {
+	buildScanner: function(resp) {
 		console.log("Bluetooth service enabled: "+resp);
+		// build proximity scanner
+		window.plugins.EstimoteProximity.buildProximityObserver(this.startScanner, this.displayError);
+	},
+	startScanner: function(resp) {
+		console.log("Proximity Scanner PID: "+resp);
+		window.plugins.EstimoteProximity.startProximityObserver(resp, "zone", "desk", this.receiveResults, this.displayError);
+	},
+	receiveResults: function(resp) {
+		console.log("Results received from scanner:"+resp);
 	},
 	
+	displaySuccess: function(resp) {
+		console.log("Success response received: "+resp);
+	},
 	displayError: function(resp) {
-		console.log("Error in service,"+ this.caller +", response received: "+resp);
+		console.log("Error response received: "+resp);
 	},
 
     // deviceready Event Handler
@@ -36,9 +48,6 @@ var app = {
     // 'pause', 'resume', etc.
     onDeviceReady: function() {
         this.receivedEvent('deviceready');
-		// request System permissions
-		window.plugins.EstimoteProximity.getSystemPermissions(this.startScanner, this.displayError);
-		
     },
 
     // Update DOM on a Received Event
@@ -51,6 +60,11 @@ var app = {
         receivedElement.setAttribute('style', 'display:block;');
 
         console.log('Received Event: ' + id);
+		
+		// store cloud credentials
+		window.plugins.EstimoteProximity.setCloudCredentials("desk-app-6r2", "d92e1e7d392e4d7db46c09630ade26a7", this.displaySuccess, this.displayError);
+		// request System permissions
+		window.plugins.EstimoteProximity.getSystemPermissions(this.buildScanner, this.displayError);
     }
 	
 };
