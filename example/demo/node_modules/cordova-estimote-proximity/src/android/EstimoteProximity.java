@@ -45,7 +45,7 @@ public class EstimoteProximity extends CordovaPlugin {
 	private static List<ProximityObserver> proximityObservers = null;
 	private static List<ProximityObserver.Handler> proximityHandlers = null;
 	private static List<CallbackContext> proximityCallbacks = null;
-
+	private static List<ProximityZone> proximityZones = null;
 	
 	/**
      * Sets the context of the Command. This can then be used to do things like
@@ -62,6 +62,7 @@ public class EstimoteProximity extends CordovaPlugin {
 		proximityObservers = new ArrayList();
 		proximityHandlers = new ArrayList();
 		proximityCallbacks = new ArrayList();
+		proximityZones = new ArrayList();
 	}
 	
 	/**
@@ -103,9 +104,7 @@ public class EstimoteProximity extends CordovaPlugin {
 		else if ("startProximityObserver".equals(action)) {
 			cordova.getThreadPool().execute(new Runnable() {
 				public void run() {
-					PluginResult start = new PluginResult(Status.OK, startProximityObserver(args, callbackContext));
-					start.setKeepCallback(true);
-					callbackContext.sendPluginResult(start);
+					callbackContext.sendPluginResult(new PluginResult(Status.OK, startProximityObserverHandler(args)));
 				}
 			});
 		}
@@ -113,6 +112,15 @@ public class EstimoteProximity extends CordovaPlugin {
 			cordova.getThreadPool().execute(new Runnable() {
 				public void run() {
 					callbackContext.sendPluginResult(new PluginResult(Status.OK, stopProximityObserverHandler(args)));
+				}
+			});
+		}
+		else if ("buildProximityZone".equals(action)) {
+			cordova.getThreadPool().execute(new Runnable() {
+				public void run() {
+					PluginResult start = new PluginResult(Status.OK, buildProximityZone(args, callbackContext));
+					start.setKeepCallback(true);
+					callbackContext.sendPluginResult(start);
 				}
 			});
 		}
@@ -124,6 +132,68 @@ public class EstimoteProximity extends CordovaPlugin {
     }
 	
 	/*** PLUGIN FUNCTIONS ***/
+	
+	private int buildProximityZone(JSONArray args, CallbackContext callbackContext) {
+		try {
+			String attachmentKey = args.getString(0);
+			String attachmentValue = args.getString(1);
+			double rangeMode = args.getDouble(2);
+			
+			ProximityObserver.ProximityZoneAttachmentBuilder zoneAttachBuilder = new ProximityObserver.ProximityZoneAttachmentBuilder();
+			ProximityObserver.ProximityZoneRangeBuilder zoneRangeBuilder = null;
+			ProximityObserver.ProximityZoneBuilder zoneBuilder = null;
+			if (attachmentValue != null && attachmentValue != "null" && attachmentValue != "") {
+				zoneRangeBuilder = zoneAttachBuilder.forAttachmentKeyAndValue(attachmentKey, attachmentValue);
+			}
+			zoneRangeBuilder = zoneAttachBuilder.forAttachmentKey(attachmentKey);
+
+			switch (rangeMode) {
+				case -2: // near range
+					zoneRangeBuilder = zoneRangeBuilder.inNearRange();
+					break;
+				case -1: // far range
+					zoneRangeBuilder = zoneRangeBuilder.inFarRange();
+					break;
+				default: // custom range
+					double customRange = args.getDouble(3);
+					zoneRangeBuilder = zoneRangeBuilder.inCustomRange(customRange);
+			}
+			
+			zoneRangeBuilder
+			.withOnEnterAction(new Function1<ProximityAttachment, Unit>() {
+				@Override 
+				public Unit invoke(ProximityAttachment proximityAttachment) {
+					Log.d(PLUGIN_NAME, "entered zone!");
+					Map<String, String> data = proximityAttachment.getPayload();
+					data.put("device_id", proximityAttachment.getDeviceId());
+					data.put("event", "1");
+					PluginResult update = new PluginResult(Status.OK, mapToJSON(data).toString());
+					update.setKeepCallback(true);
+					callbackContext.sendPluginResult(update);
+					return null;
+				}
+			})
+			.withOnExitAction(new Function1<ProximityAttachment, Unit>() {
+				@Override 
+				public Unit invoke(ProximityAttachment proximityAttachment) {
+					Log.d(PLUGIN_NAME, "exited zone!");
+					Map<String, String> data = proximityAttachment.getPayload();
+					data.put("device_id", proximityAttachment.getDeviceId());
+					data.put("event", "0");
+					PluginResult update = new PluginResult(Status.OK, mapToJSON(data).toString());
+					update.setKeepCallback(true);
+					callbackContext.sendPluginResult(update);
+					return null;
+				}
+			});
+			proximityZones.add(zoneRangeBuilder.create());
+			return proximityZones.size()-1;
+		}
+		catch (JSONException e) {
+			Log.e(PLUGIN_NAME, "error", e);
+		}
+		return -1;
+	}
 	
 	/**
 	 * Builds a ProximityObserver based off of input params
@@ -188,53 +258,26 @@ public class EstimoteProximity extends CordovaPlugin {
 	}
 	
 	/**
-	 * Creates BeaconZone to scane and starts a ProximityObserver object
+	 * Starts a ProximityObserver object
 	 *
-	 * @param args					JSONArray of arguments to use when building BeaconZone
-	 * @param callbackContext		Context where to send update results from onEnter and onExit events
+	 * @param args					JSONArray of arguments to use when adding BeaconZones
 	 * @return						Boolean value indicating successful creation of BeaconZone and starting ProximityObserver
 	 */
-	private boolean startProximityObserver(JSONArray args, CallbackContext callbackContext) {
+	private boolean startProximityObserver(JSONArray args) {
 		try {
 			int pid = args.getInt(0);
 			if (isValidPid(pid)) {
 				if (proximityObservers.get(pid) != null) {
-					String attachKey = args.getString(1);
-					String attachValue = args.getString(2);
-					proximityCallbacks.set(pid, callbackContext);
-					
-					ProximityZone beaconZone = proximityObservers.get(pid).zoneBuilder()
-					.forAttachmentKeyAndValue(attachKey, attachValue)
-					.inFarRange()
-					.withOnEnterAction(new Function1<ProximityAttachment, Unit>() {
-						@Override 
-						public Unit invoke(ProximityAttachment proximityAttachment) {
-							Log.d(PLUGIN_NAME, "entered zone!");
-							Map<String, String> data = proximityAttachment.getPayload();
-							data.put("device_id", proximityAttachment.getDeviceId());
-							data.put("event", "1");
-							PluginResult update = new PluginResult(Status.OK, mapToJSON(data).toString());
-							update.setKeepCallback(true);
-							proximityCallbacks.get(pid).sendPluginResult(update);
-							return null;
+					JSONArray zoneIds = args.getJSONArray(0);
+					List<ProximityZone> zones = new ArrayList();
+					for (int i = 0; i < zoneIds.length(); i++) {
+						int zoneId = zoneIds.getInt(i);
+						if (isValidZid(zoneId) {
+							zones.add(proximityZones.get(zoneId));
 						}
-					})
-					.withOnExitAction(new Function1<ProximityAttachment, Unit>() {
-						@Override 
-						public Unit invoke(ProximityAttachment proximityAttachment) {
-							Log.d(PLUGIN_NAME, "exited zone!");
-							Map<String, String> data = proximityAttachment.getPayload();
-							data.put("device_id", proximityAttachment.getDeviceId());
-							data.put("event", "0");
-							PluginResult update = new PluginResult(Status.OK, mapToJSON(data).toString());
-							update.setKeepCallback(true);
-							proximityCallbacks.get(pid).sendPluginResult(update);
-							return null;
-						}
-					})
-					.create();
+					}
 					
-					proximityObservers.get(pid).addProximityZones(beaconZone);
+					proximityObservers.get(pid).addProximityZones(zones);
 					proximityHandlers.set(pid, proximityObservers.get(pid).start());
 				}
 			}
