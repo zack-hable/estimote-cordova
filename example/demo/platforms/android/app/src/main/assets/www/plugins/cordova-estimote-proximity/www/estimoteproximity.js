@@ -16,8 +16,8 @@ function EstimoteProximity() {
 	this.hasCloudCredentials = function(onSuccess, onError) {
 		exec(onSuccess, onError, PLUGIN_NAME, 'hasCloudCredentials', []);
 	};
-	this.buildProximityObserver = function(onSuccess, onError) {
-		exec(onSuccess, onError, PLUGIN_NAME, 'buildProximityObserver', []);
+	this.buildProximityObserver = function(analyticsReportingDisabled = false, estimoteSecureMonitoringDisabled = false, scannerInForegroundService = false, telemetryReportingDisabled = false, powerMode = 2, onSuccess, onError) {
+		exec(onSuccess, onError, PLUGIN_NAME, 'buildProximityObserver', [analyticsReportingDisabled, estimoteSecureMonitoringDisabled, scannerInForegroundService, telemetryReportingDisabled, powerMode]);
 	};
 	this.startProximityObserver = function(pid, attachKey, attachVal, onSuccess, onError) {
 		exec(onSuccess, onError, PLUGIN_NAME, 'startProximityObserver', [pid, attachKey, attachVal]);

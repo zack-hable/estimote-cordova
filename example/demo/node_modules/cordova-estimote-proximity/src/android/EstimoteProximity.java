@@ -3,6 +3,11 @@ package com.zackhable.estimote;
 // Java Libs
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 // Cordova Libs
 import org.apache.cordova.CordovaWebView;
 import org.apache.cordova.CallbackContext;
@@ -14,9 +19,7 @@ import org.apache.cordova.PluginResult.Status;
 import android.util.Log;
 import android.app.Activity;
 import android.content.Context;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
+import android.app.Notification;
 // Kotlin Libs
 import kotlin.Unit;
 import kotlin.jvm.functions.Function0;
@@ -71,7 +74,7 @@ public class EstimoteProximity extends CordovaPlugin {
      */
 	public boolean execute(String action, JSONArray args, CallbackContext callbackContext) {
 		if ("getSystemPermissions".equals(action)) {
-			getBluetoothPermissions();
+			callbackContext.sendPluginResult(new PluginResult(Status.OK, getBluetoothPermissions()));
 		}
 		else if ("hasSystemPermissions".equals(action)) {
 			callbackContext.sendPluginResult(new PluginResult(Status.OK, hasBluetoothAccess()));
@@ -83,7 +86,7 @@ public class EstimoteProximity extends CordovaPlugin {
 			callbackContext.sendPluginResult(new PluginResult(Status.OK, hasCloudCredentials()));
 		}
 		else if ("buildProximityObserver".equals(action)) {
-			callbackContext.sendPluginResult(new PluginResult(Status.OK, buildProximityObserver()));
+			callbackContext.sendPluginResult(new PluginResult(Status.OK, buildProximityObserver(args)));
 		}
 		else if ("startProximityObserver".equals(action)) {
 			PluginResult start = new PluginResult(Status.OK, startProximityObserver(args, callbackContext));
@@ -102,28 +105,75 @@ public class EstimoteProximity extends CordovaPlugin {
 	
 	/*** PLUGIN FUNCTIONS ***/
 	
-	private int buildProximityObserver() {
+	/**
+	 * Builds a ProximityObserver based off of input params
+	 *
+	 * @param args				JSONArray of values to use as arguments when building the ProximityObserver
+	 * @return					Boolean value indicating successful creation of ProximityObserver
+	 */
+	private int buildProximityObserver(JSONArray args) {
 		if (!hasBluetoothAccess()) {
 			getBluetoothPermissions();
 		}
 		if (hasCloudCredentials()) {
-			try {			
-				ProximityObserver proximityObserver = new ProximityObserverBuilder(appContext, cloudCredentials)
-                .withBalancedPowerMode()
-                .build();
-
+			try {
+				boolean analyticsReportingDisabled = args.getBoolean(0);
+				boolean estimoteSecureMonitoringDisabled = args.getBoolean(1);
+				int powerMode = args.getInt(2);
+				boolean telemetryReportingDisabled = args.getBoolean(3);
+				boolean scannerInForegroundService = args.getBoolean(4);
+				
+				ProximityObserverBuilder proximityObserverBuilder = new ProximityObserverBuilder(appContext, cloudCredentials);
+				if (analyticsReportingDisabled) {
+					proximityObserverBuilder.withAnalyticsReportingDisabled();
+				}
+				if (estimoteSecureMonitoringDisabled) {
+					proximityObserverBuilder.withEstimoteSecureMonitoringDisabled();
+				}
+				if (scannerInForegroundService)  {
+					JSONArray notificationArgs = args.getJSONArray(5);
+					String chanId = notificationArgs.getString(0);
+					String chanName = notificationArgs.getString(1);
+					String chanDesc = notificationArgs.getString(2);
+					String notTitle = notificationArgs.getString(3);
+					String notText = notificationArgs.getString(4);
+					NotificationCreator notificationCreator = new NotificationCreator(chanId, chanName, chanDesc, notTitle, notText);
+					proximityObserverBuilder.withScannerInForegroundService(notificationCreator.createNotification(appContext));
+				}
+				if (telemetryReportingDisabled) {
+					proximityObserverBuilder.withTelemetryReportingDisabled();
+				}
+				switch (powerMode) {
+					case 0: // low power mode
+						proximityObserverBuilder.withLowPowerMode();
+						break;
+					case 1: // low latency mode
+						proximityObserverBuilder.withLowLatencyPowerMode();
+						break;
+					default: // balanced mode
+						proximityObserverBuilder.withBalancedPowerMode();
+				}
+				
+				ProximityObserver proximityObserver = proximityObserverBuilder.build();
 				proximityObservers.add(proximityObserver);
 				proximityHandlers.add(null);
 				proximityCallbacks.add(null);
 				return proximityObservers.size()-1;
 			}
-			catch (Exception e) {
+			catch (JSONException e) {
 				Log.e(PLUGIN_NAME, e.getStackTrace().toString());
 			}
 		}
 		return -1;
 	}
 	
+	/**
+	 * Creates BeaconZone to scane and starts a ProximityObserver object
+	 *
+	 * @param args					JSONArray of arguments to use when building BeaconZone
+	 * @param callbackContext		Context where to send update results from onEnter and onExit events
+	 * @return						Boolean value indicating successful creation of BeaconZone and starting ProximityObserver
+	 */
 	private boolean startProximityObserver(JSONArray args, CallbackContext callbackContext) {
 		try {
 			int pid = args.getInt(0);
@@ -140,7 +190,10 @@ public class EstimoteProximity extends CordovaPlugin {
 						@Override 
 						public Unit invoke(ProximityAttachment proximityAttachment) {
 							Log.d(PLUGIN_NAME, "entered zone!");
-							PluginResult update = new PluginResult(Status.OK, "enter");
+							Map<String, String> data = proximityAttachment.getPayload();
+							data.put("device_id", proximityAttachment.getDeviceId());
+							data.put("event", "1");
+							PluginResult update = new PluginResult(Status.OK, mapToJSON(data).toString());
 							update.setKeepCallback(true);
 							proximityCallbacks.get(pid).sendPluginResult(update);
 							return null;
@@ -150,7 +203,10 @@ public class EstimoteProximity extends CordovaPlugin {
 						@Override 
 						public Unit invoke(ProximityAttachment proximityAttachment) {
 							Log.d(PLUGIN_NAME, "exited zone!");
-							PluginResult update = new PluginResult(Status.OK, "exit");
+							Map<String, String> data = proximityAttachment.getPayload();
+							data.put("device_id", proximityAttachment.getDeviceId());
+							data.put("event", "0");
+							PluginResult update = new PluginResult(Status.OK, mapToJSON(data).toString());
 							update.setKeepCallback(true);
 							proximityCallbacks.get(pid).sendPluginResult(update);
 							return null;
@@ -159,7 +215,6 @@ public class EstimoteProximity extends CordovaPlugin {
 					.create();
 					
 					proximityObservers.get(pid).addProximityZones(beaconZone);
-				
 					proximityHandlers.set(pid, proximityObservers.get(pid).start());
 				}
 			}
@@ -174,7 +229,12 @@ public class EstimoteProximity extends CordovaPlugin {
 		return true;
 	}
 	
-	
+	/**
+	 * Stops a ProximityObserver object
+	 *
+	 * @param args					JSONArray of arguments to use when stopping ProximityObserver
+	 * @return						Boolean value indicating a successful stop of a ProximityObserver
+	 */
 	private boolean stopProximityObserverHandler(JSONArray args) {
 		try {
 			int pid = args.getInt(0);
@@ -197,13 +257,24 @@ public class EstimoteProximity extends CordovaPlugin {
 		return true;
 	}
 	
+	/**
+	 * Verifies if a Proximity ID is valid
+	 *
+	 * @param pid					Proximity ID to verify
+	 * @return						Boolean value indicating valid pid of a ProximityObserver
+	 */
 	private boolean isValidPid(int pid) {
-		if (pid >= proximityObservers.size()) {
+		if (pid >= proximityObservers.size() || proximityObservers.get(pid) == null) {
 			return false;
 		}
 		return true;
 	}
 	
+	/**
+	 * Checks if CloudCredentials have been initialized
+	 *
+	 * @return						Boolean value indicating successful initialization of CloudCredentials
+	 */
 	private boolean hasCloudCredentials() {
 		if (cloudCredentials == null) {
 			Log.w(PLUGIN_NAME, "No Cloud Credentials have been initialized yet!");
@@ -212,6 +283,12 @@ public class EstimoteProximity extends CordovaPlugin {
 		return true;
 	}
 	
+	/**
+	 * Sets CloudCredentials
+	 *
+	 * @param args					JSONArray of arguments to use when initializing CloudCredentials
+	 * @return						Boolean value indicating successful creation of CloudCredentials
+	 */
 	private boolean setCloudCredentials(JSONArray args) {
 		try {
 			String appId = args.getString(0);
@@ -225,14 +302,21 @@ public class EstimoteProximity extends CordovaPlugin {
 		return true;
 	}
 	
+	/**
+	 * Checks if app has access to necessary system resources
+	 *
+	 * @return						Boolean value indicating access to necessary system resources
+	 */
 	private boolean hasBluetoothAccess() {
 		return hasBluetoothAccess;
 	}
 	
 	/**
-	 * Ensures that the app has access to the necessary system resources
+	 * Gains permission to use necessary system resources
+	 *
+	 * @return						Boolean value indicating access to necessary system resources
 	 */
-	private void getBluetoothPermissions() {
+	private boolean getBluetoothPermissions() {
 		Log.d(PLUGIN_NAME, "Requesting access to system resources...");
 		RequirementsWizardFactory.createEstimoteRequirementsWizard().fulfillRequirements(
 			appActivity, 
@@ -259,6 +343,29 @@ public class EstimoteProximity extends CordovaPlugin {
 				}
 			}
 		);
+		return hasBluetoothAccess;
+	}
+	
+	/*** HELPER FUNCTIONS ***/
+	
+	/**
+	 * Converts a Map<String, String> to a JSONObject
+	 *
+	 * @param data					Map<String, String> to be converted
+	 * @return						Converted JSONObject
+	 */
+	private JSONObject mapToJSON(Map<String, String> data) {
+		JSONObject result = new JSONObject();
+		try {
+			for (Map.Entry<String, String> entry: data.entrySet()) {
+				result.put(entry.getKey(), entry.getValue());
+			}
+		}
+		catch (JSONException e) {
+			Log.e(PLUGIN_NAME, e.getStackTrace().toString());
+			return null;
+		}
+		return result;
 	}
 	
 }

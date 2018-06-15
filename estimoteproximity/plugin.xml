@@ -49,6 +49,7 @@
         </config-file>
 		<framework src="src/android/build-extras.gradle" custom="true" type="gradleReference" />
         <source-file src="src/android/EstimoteProximity.java" target-dir="src/com/zackhable/estimote/" />
+		<source-file src="src/android/NotificationCreator.java" target-dir="src/com/zackhable/estimote/" />
     </platform>
 	
 </plugin>

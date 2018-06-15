@@ -25,14 +25,15 @@ var app = {
 	buildScanner: function(resp) {
 		console.log("Bluetooth service enabled: "+resp);
 		// build proximity scanner
-		window.plugins.EstimoteProximity.buildProximityObserver(this.startScanner, this.displayError);
+		window.plugins.EstimoteProximity.buildProximityObserver(app.startScanner, app.displayError);
 	},
 	startScanner: function(resp) {
 		console.log("Proximity Scanner PID: "+resp);
-		window.plugins.EstimoteProximity.startProximityObserver(resp, "zone", "desk", this.receiveResults, this.displayError);
+		window.plugins.EstimoteProximity.startProximityObserver(resp, "zone", "desk", app.receiveResults, app.displayError);
 	},
 	receiveResults: function(resp) {
 		console.log("Results received from scanner:"+resp);
+		document.getElementById("status").innerText = resp;
 	},
 	
 	displaySuccess: function(resp) {
@@ -62,9 +63,9 @@ var app = {
         console.log('Received Event: ' + id);
 		
 		// store cloud credentials
-		window.plugins.EstimoteProximity.setCloudCredentials("desk-app-6r2", "d92e1e7d392e4d7db46c09630ade26a7", this.displaySuccess, this.displayError);
+		window.plugins.EstimoteProximity.setCloudCredentials("desk-app-6r2", "d92e1e7d392e4d7db46c09630ade26a7"/*APP ID, APP TOKEN*/, app.displaySuccess, app.displayError);
 		// request System permissions
-		window.plugins.EstimoteProximity.getSystemPermissions(this.buildScanner, this.displayError);
+		window.plugins.EstimoteProximity.getSystemPermissions(app.buildScanner, app.displayError);
     }
 	
 };
