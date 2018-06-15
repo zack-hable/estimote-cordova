@@ -74,27 +74,47 @@ public class EstimoteProximity extends CordovaPlugin {
      */
 	public boolean execute(String action, JSONArray args, CallbackContext callbackContext) {
 		if ("getSystemPermissions".equals(action)) {
-			callbackContext.sendPluginResult(new PluginResult(Status.OK, getBluetoothPermissions()));
+			cordova.getThreadPool().execute(new Runnable() {
+				public void run() {
+					callbackContext.sendPluginResult(new PluginResult(Status.OK, getBluetoothPermissions()));
+				}
+			});
 		}
 		else if ("hasSystemPermissions".equals(action)) {
 			callbackContext.sendPluginResult(new PluginResult(Status.OK, hasBluetoothAccess()));
 		}
 		else if ("setCloudCredentials".equals(action)) {
-			callbackContext.sendPluginResult(new PluginResult(Status.OK, setCloudCredentials(args)));
+			cordova.getThreadPool().execute(new Runnable() {
+				public void run() {
+					callbackContext.sendPluginResult(new PluginResult(Status.OK, setCloudCredentials(args)));
+				}
+			});
 		}
 		else if ("hasCloudCredentials".equals(action)) {
 			callbackContext.sendPluginResult(new PluginResult(Status.OK, hasCloudCredentials()));
 		}
 		else if ("buildProximityObserver".equals(action)) {
-			callbackContext.sendPluginResult(new PluginResult(Status.OK, buildProximityObserver(args)));
+			cordova.getThreadPool().execute(new Runnable() {
+				public void run() {
+					callbackContext.sendPluginResult(new PluginResult(Status.OK, buildProximityObserver(args)));
+				}
+			});
 		}
 		else if ("startProximityObserver".equals(action)) {
-			PluginResult start = new PluginResult(Status.OK, startProximityObserver(args, callbackContext));
-			start.setKeepCallback(true);
-			callbackContext.sendPluginResult(start);
+			cordova.getThreadPool().execute(new Runnable() {
+				public void run() {
+					PluginResult start = new PluginResult(Status.OK, startProximityObserver(args, callbackContext));
+					start.setKeepCallback(true);
+					callbackContext.sendPluginResult(start);
+				}
+			});
 		}
 		else if ("stopProximityObserver".equals(action)) {
-			callbackContext.sendPluginResult(new PluginResult(Status.OK, stopProximityObserverHandler(args)));
+			cordova.getThreadPool().execute(new Runnable() {
+				public void run() {
+					callbackContext.sendPluginResult(new PluginResult(Status.OK, stopProximityObserverHandler(args)));
+				}
+			});
 		}
 		else { // endpoint doesn't exist
 			return false;
@@ -161,7 +181,7 @@ public class EstimoteProximity extends CordovaPlugin {
 				return proximityObservers.size()-1;
 			}
 			catch (JSONException e) {
-				Log.e(PLUGIN_NAME, e.getStackTrace().toString());
+				Log.e(PLUGIN_NAME, "error", e);
 			}
 		}
 		return -1;
@@ -223,7 +243,7 @@ public class EstimoteProximity extends CordovaPlugin {
 			}
 		}
 		catch (JSONException e) {
-			Log.e(PLUGIN_NAME, e.getStackTrace().toString());
+			Log.e(PLUGIN_NAME, "error", e);
 			return false;
 		}
 		return true;
@@ -251,7 +271,7 @@ public class EstimoteProximity extends CordovaPlugin {
 			}
 		}
 		catch (JSONException e) {
-			Log.e(PLUGIN_NAME, e.getStackTrace().toString());
+			Log.e(PLUGIN_NAME, "error", e);
 			return false;
 		}
 		return true;
@@ -296,7 +316,7 @@ public class EstimoteProximity extends CordovaPlugin {
 			cloudCredentials = new EstimoteCloudCredentials(appId, appToken);
 		}
 		catch (JSONException e) {
-			Log.e(PLUGIN_NAME, e.getStackTrace().toString());
+			Log.e(PLUGIN_NAME, "error", e);
 			return false;
 		}
 		return true;
@@ -362,7 +382,7 @@ public class EstimoteProximity extends CordovaPlugin {
 			}
 		}
 		catch (JSONException e) {
-			Log.e(PLUGIN_NAME, e.getStackTrace().toString());
+			Log.e(PLUGIN_NAME, "error", e);
 			return null;
 		}
 		return result;

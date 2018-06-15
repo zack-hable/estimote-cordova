@@ -17,18 +17,26 @@
  * under the License.
  */
 var app = {
+	pids: [],
+	
     // Application Constructor
     initialize: function() {
         document.addEventListener('deviceready', this.onDeviceReady.bind(this), false);
+		document.addEventListener('pause', this.onAppMinimize.bind(this), false); // this won't work as expected on iOS
     },
 	
 	buildScanner: function(resp) {
 		console.log("Bluetooth service enabled: "+resp);
 		// build proximity scanner
-		window.plugins.EstimoteProximity.buildProximityObserver(app.startScanner, app.displayError);
+		window.plugins.EstimoteProximity.proximityObserverBuilder()
+		.withScannerInForegroundService([null, null, null, "Cordova Proximity Demo", null])
+		.onSuccess(app.startScanner)
+		.onError(app.displayError)
+		.build();
 	},
 	startScanner: function(resp) {
 		console.log("Proximity Scanner PID: "+resp);
+		app.pids.push(resp);
 		window.plugins.EstimoteProximity.startProximityObserver(resp, "zone", "desk", app.receiveResults, app.displayError);
 	},
 	receiveResults: function(resp) {
@@ -41,6 +49,14 @@ var app = {
 	},
 	displayError: function(resp) {
 		console.log("Error response received: "+resp);
+	},
+	
+	onAppMinimize: function() {
+		console.log("attempting to stop all Proximity Observers...");
+		for(i=0; i<app.pids.length; i++) {
+			window.plugins.EstimoteProximity.stopProximityObserver(app.pids[i], app.displaySuccess, app.displayError);
+		}
+		console.log("finished stopping all Proximity Observers!");
 	},
 
     // deviceready Event Handler

@@ -32,16 +32,16 @@ public class NotificationCreator {
 	private String NOTIFICATION_TEXT = "Proximity Scanner is running...";
 	
 	public NotificationCreator(String chanId, String chanName, String chanDesc, String notTitle, String notText) {
-		CHANNEL_ID = (chanId == null) ? CHANNEL_ID : chanId;
-		CHANNEL_NAME = (chanName == null) ? CHANNEL_NAME : chanName;
-		CHANNEL_DESCRIPTION = (chanDesc == null) ? CHANNEL_DESCRIPTION : chanDesc;
-		NOTIFICATION_TITLE = (notTitle == null) ? NOTIFICATION_TITLE : notTitle;
-		NOTIFICATION_TEXT = (notText == null) ? NOTIFICATION_TEXT : notText;
+		CHANNEL_ID = (chanId == null || chanId == "null" || chanId == "") ? CHANNEL_ID : chanId;
+		CHANNEL_NAME = (chanName == null || chanName == "null" || chanName == "") ? CHANNEL_NAME : chanName;
+		CHANNEL_DESCRIPTION = (chanDesc == null || chanDesc == "null" || chanDesc == "") ? CHANNEL_DESCRIPTION : chanDesc;
+		NOTIFICATION_TITLE = (notTitle == null || notTitle == "null" || notTitle == "") ? NOTIFICATION_TITLE : notTitle;
+		NOTIFICATION_TEXT = (notText == null || notText == "null" || notText == "") ? NOTIFICATION_TEXT : notText;
 	}
 
     public Notification createNotification(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) createNotificationChannel(context);
-        return NotificationCompat.Builder(context, CHANNEL_ID)
+        return new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.arrow_up_float/*beacon_gray*/)
                 .setContentTitle(NOTIFICATION_TITLE)
                 .setContentText(NOTIFICATION_TEXT)
@@ -54,8 +54,8 @@ public class NotificationCreator {
         String name = CHANNEL_NAME;
         String description = CHANNEL_DESCRIPTION;
         int importance = android.app.NotificationManager.IMPORTANCE_HIGH;
-        NotificationChannel mChannel = NotificationChannel(id, name, importance);
-        mChannel.description = description;
+        NotificationChannel mChannel = new NotificationChannel(id, name, importance);
+        mChannel.setDescription(description);
         NotificationManager mNotificationManager = (NotificationManager)context.getSystemService(Context.NOTIFICATION_SERVICE);// as android.app.NotificationManager
         mNotificationManager.createNotificationChannel(mChannel);
     }
