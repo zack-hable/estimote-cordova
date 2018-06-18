@@ -43,16 +43,84 @@ function EstimoteProximity() {
 			this.powerMode = 0;
 			return this;
 		};
-		this.onSuccess = function(success) {
+		this.withOnSuccessAction = function(success) {
 			this.success = success;
 			return this;
 		};
-		this.onError = function(error) {
+		this.withOnErrorAction = function(error) {
 			this.error = error;
 			return this;
 		};
 		this.build = function() {
 			window.plugins.EstimoteProximity.buildProximityObserver(this.analyticsReportingDisabled, this.estimoteSecureMonitoringDisabled, this.scannerInForegroundService, this.telemetryReportingDisabled, this.powerMode, this.notification, this.success, this.error);
+		};
+	};
+	function EstimoteProximityZoneBuilder() {
+		var self = this;
+		this.pid = -1;
+		this.attachKey = "";
+		this.attachValue = "";
+		this.rangeMode = -2;
+		this.onEnter = null;
+		this.onExit = null;
+		this.onSuccess = null;
+		this.onError = null;
+		
+		this.forAttachmentKey = function(key) {
+			this.attachKey = key;
+			return this;
+		};
+		this.forAttachmentKeyAndValue = function(key, value) {
+			this.attachKey = key;
+			this.attachValue = value;
+			return this;
+		};
+		this.inNearRange = function() {
+			this.rangeMode = -2;
+			return this;
+		};
+		this.inFarRange = function() {
+			this.rangeMode = -1;
+			return this;
+		};
+		this.inCustomRange = function(rangeDist) {
+			this.rangeMode = rangeDist;
+			return this;
+		};
+		this.withOnEnterAction = function(onEnter) {
+			this.onEnter = onEnter;
+			return this;
+		};
+		this.withOnExitAction = function(onExit) {
+			this.onExit = onExit;
+			return this;
+		};
+		this.forProximityObserver = function(pid) {
+			this.pid = pid;
+			return this;
+		};
+		this.withOnSuccessAction = function(onSuccess) {
+			this.onSuccess = onSuccess;
+			return this;
+		};
+		this.withOnErrorAction = function(onError) {
+			this.onError = onError;
+			return this;
+		};
+		this.onEvent = function(resp) {
+			data = JSON.parse(resp);
+			if (data["event"] == "enter") {
+				self.onEnter(resp);
+			}
+			else if (data["event"] == "exit") {
+				self.onExit(resp);
+			}
+			else {
+				self.onSuccess(resp);
+			}
+		};
+		this.create = function() {
+			window.plugins.EstimoteProximity.buildProximityZone(this.pid, this.attachKey, this.attachValue, this.rangeMode, this.onEvent, this.onError);
 		};
 	};
 	
@@ -74,11 +142,20 @@ function EstimoteProximity() {
 	this.proximityObserverBuilder = function() {
 		return new EstimoteProximityBuilder();
 	};
-	this.startProximityObserver = function(pid, attachKey, attachVal, onSuccess, onError) {
-		exec(onSuccess, onError, PLUGIN_NAME, 'startProximityObserver', [pid, attachKey, attachVal]);
+	this.startProximityObserver = function(pid, proximityZones, onSuccess, onError) {
+		exec(onSuccess, onError, PLUGIN_NAME, 'startProximityObserver', [pid, proximityZones]);
 	};
 	this.stopProximityObserver = function(pid, onSuccess, onError) {
 		exec(onSuccess, onError, PLUGIN_NAME, 'stopProximityObserver', [pid]);
+	};
+	this.buildProximityZone = function(pid = -1, attachmentKey = "", attachmentValue = "", rangeMode = -2, onEvent, onError) {
+		exec(onEvent, onError, PLUGIN_NAME, 'buildProximityZone', [pid, attachmentKey, attachmentValue, rangeMode]);
+	};
+	this.proximityZoneBuilder = function() {
+		return new EstimoteProximityZoneBuilder();
+	};
+	this.deleteProximityZone = function(zoneId, onSuccess, onError) {
+		exec(onSuccess, onError, PLUGIN_NAME, 'deleteProximityZone', [zoneId]);
 	};
 }
 

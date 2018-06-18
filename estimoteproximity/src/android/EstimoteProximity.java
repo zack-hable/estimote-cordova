@@ -32,9 +32,10 @@ import com.estimote.proximity_sdk.proximity.ProximityObserver;
 import com.estimote.proximity_sdk.proximity.ProximityObserverBuilder;
 import com.estimote.proximity_sdk.proximity.ProximityZone;
 import com.estimote.proximity_sdk.proximity.ProximityAttachment;
+import com.estimote.proximity_sdk.trigger.ProximityTrigger;
+import com.estimote.proximity_sdk.trigger.ProximityTriggerBuilder;
 
 public class EstimoteProximity extends CordovaPlugin {
-	
 	private static final String PLUGIN_NAME = "EstimoteProximity";
 	
 	private static Context appContext = null;
@@ -43,9 +44,12 @@ public class EstimoteProximity extends CordovaPlugin {
 	private static boolean hasBluetoothAccess = false;
 	private static EstimoteCloudCredentials cloudCredentials = null;
 	private static List<ProximityObserver> proximityObservers = null;
-	private static List<ProximityObserver.Handler> proximityHandlers = null;
-	private static List<CallbackContext> proximityCallbacks = null;
+	private static List<ProximityObserver.Handler> proximityObserverHandlers = null;
+	private static List<CallbackContext> proximityZoneCallbacks = null;
 	private static List<ProximityZone> proximityZones = null;
+	private static Map<Integer, List<Integer>> proximityZonesObserver = null;
+	private static List<ProximityTrigger> proximityTriggers = null;
+	private static List<ProximityTrigger.Handler> proximityTriggerHandlers = null;
 	
 	/**
      * Sets the context of the Command. This can then be used to do things like
@@ -60,9 +64,12 @@ public class EstimoteProximity extends CordovaPlugin {
 		appActivity = cordova.getActivity();
 		appContext = appActivity.getApplicationContext();
 		proximityObservers = new ArrayList();
-		proximityHandlers = new ArrayList();
-		proximityCallbacks = new ArrayList();
+		proximityObserverHandlers = new ArrayList();
+		proximityZoneCallbacks = new ArrayList();
 		proximityZones = new ArrayList();
+		proximityZonesObserver = new HashMap();
+		proximityTriggers = new ArrayList();
+		proximityTriggerHandlers = new ArrayList();
 	}
 	
 	/**
@@ -74,6 +81,7 @@ public class EstimoteProximity extends CordovaPlugin {
      * @return                  True if the action was valid, false if not.
      */
 	public boolean execute(String action, JSONArray args, CallbackContext callbackContext) {
+		// Get System Permissions access
 		if ("getSystemPermissions".equals(action)) {
 			cordova.getThreadPool().execute(new Runnable() {
 				public void run() {
@@ -81,9 +89,11 @@ public class EstimoteProximity extends CordovaPlugin {
 				}
 			});
 		}
+		// Check System Permissions access
 		else if ("hasSystemPermissions".equals(action)) {
 			callbackContext.sendPluginResult(new PluginResult(Status.OK, hasBluetoothAccess()));
 		}
+		// Set Cloud Credentials
 		else if ("setCloudCredentials".equals(action)) {
 			cordova.getThreadPool().execute(new Runnable() {
 				public void run() {
@@ -91,9 +101,11 @@ public class EstimoteProximity extends CordovaPlugin {
 				}
 			});
 		}
+		// Check Cloud Credentials initialization
 		else if ("hasCloudCredentials".equals(action)) {
 			callbackContext.sendPluginResult(new PluginResult(Status.OK, hasCloudCredentials()));
 		}
+		// Build Proximity Observer
 		else if ("buildProximityObserver".equals(action)) {
 			cordova.getThreadPool().execute(new Runnable() {
 				public void run() {
@@ -101,13 +113,15 @@ public class EstimoteProximity extends CordovaPlugin {
 				}
 			});
 		}
+		// Start Proximity Observer
 		else if ("startProximityObserver".equals(action)) {
 			cordova.getThreadPool().execute(new Runnable() {
 				public void run() {
-					callbackContext.sendPluginResult(new PluginResult(Status.OK, startProximityObserverHandler(args)));
+					callbackContext.sendPluginResult(new PluginResult(Status.OK, startProximityObserver(args)));
 				}
 			});
 		}
+		// Stop Proximity Observer
 		else if ("stopProximityObserver".equals(action)) {
 			cordova.getThreadPool().execute(new Runnable() {
 				public void run() {
@@ -115,6 +129,7 @@ public class EstimoteProximity extends CordovaPlugin {
 				}
 			});
 		}
+		// Build Proximity Zone
 		else if ("buildProximityZone".equals(action)) {
 			cordova.getThreadPool().execute(new Runnable() {
 				public void run() {
@@ -124,7 +139,16 @@ public class EstimoteProximity extends CordovaPlugin {
 				}
 			});
 		}
-		else { // endpoint doesn't exist
+		// Delete Proximity Zone
+		else if ("deleteProximityZone".equals(action)) {
+			cordova.getThreadPool().execute(new Runnable() {
+				public void run() {
+					callbackContext.sendPluginResult(new PluginResult(Status.OK, deleteProximityZone(args)));
+				}
+			});
+		}
+		// endpoint doesn't exist
+		else {
 			return false;
 		}
 		// otherwise tell them we finished successfully
@@ -133,64 +157,109 @@ public class EstimoteProximity extends CordovaPlugin {
 	
 	/*** PLUGIN FUNCTIONS ***/
 	
-	private int buildProximityZone(JSONArray args, CallbackContext callbackContext) {
+	/**
+	 * Delets a Proximity Zone and stops any Proximity Observers that may be monitoring that zone
+	 *
+	 * @param args				JSONArray of values to use as arguments when deleting the Proximity Zone
+	 * @return					Boolean value indicating successful deletion of Proximity Zone
+	 */
+	private boolean deleteProximityZone(JSONArray args) {
 		try {
-			String attachmentKey = args.getString(0);
-			String attachmentValue = args.getString(1);
-			double rangeMode = args.getDouble(2);
-			
-			ProximityObserver.ProximityZoneAttachmentBuilder zoneAttachBuilder = new ProximityObserver.ProximityZoneAttachmentBuilder();
-			ProximityObserver.ProximityZoneRangeBuilder zoneRangeBuilder = null;
-			ProximityObserver.ProximityZoneBuilder zoneBuilder = null;
-			if (attachmentValue != null && attachmentValue != "null" && attachmentValue != "") {
-				zoneRangeBuilder = zoneAttachBuilder.forAttachmentKeyAndValue(attachmentKey, attachmentValue);
-			}
-			zoneRangeBuilder = zoneAttachBuilder.forAttachmentKey(attachmentKey);
-
-			switch (rangeMode) {
-				case -2: // near range
-					zoneRangeBuilder = zoneRangeBuilder.inNearRange();
-					break;
-				case -1: // far range
-					zoneRangeBuilder = zoneRangeBuilder.inFarRange();
-					break;
-				default: // custom range
-					double customRange = args.getDouble(3);
-					zoneRangeBuilder = zoneRangeBuilder.inCustomRange(customRange);
-			}
-			
-			zoneRangeBuilder
-			.withOnEnterAction(new Function1<ProximityAttachment, Unit>() {
-				@Override 
-				public Unit invoke(ProximityAttachment proximityAttachment) {
-					Log.d(PLUGIN_NAME, "entered zone!");
-					Map<String, String> data = proximityAttachment.getPayload();
-					data.put("device_id", proximityAttachment.getDeviceId());
-					data.put("event", "1");
-					PluginResult update = new PluginResult(Status.OK, mapToJSON(data).toString());
-					update.setKeepCallback(true);
-					callbackContext.sendPluginResult(update);
-					return null;
+			int zoneId = args.getInt(0);
+			if (isValidZid(zoneId)) {
+				proximityZoneCallbacks.get(zoneId).sendPluginResult(new PluginResult(Status.OK, true));
+				List<Integer> zoneObserver = proximityZonesObserver.get(zoneId);
+				
+				for (Integer pid: zoneObserver) {
+					stopProximityObserverHandler(new JSONArray(pid));
 				}
-			})
-			.withOnExitAction(new Function1<ProximityAttachment, Unit>() {
-				@Override 
-				public Unit invoke(ProximityAttachment proximityAttachment) {
-					Log.d(PLUGIN_NAME, "exited zone!");
-					Map<String, String> data = proximityAttachment.getPayload();
-					data.put("device_id", proximityAttachment.getDeviceId());
-					data.put("event", "0");
-					PluginResult update = new PluginResult(Status.OK, mapToJSON(data).toString());
-					update.setKeepCallback(true);
-					callbackContext.sendPluginResult(update);
-					return null;
-				}
-			});
-			proximityZones.add(zoneRangeBuilder.create());
-			return proximityZones.size()-1;
+				
+				proximityZones.set(zoneId, null);
+				proximityZoneCallbacks.set(zoneId, null);
+				proximityZonesObserver.remove(zoneId);
+			}
+			else {
+				return false;
+			}
 		}
 		catch (JSONException e) {
-			Log.e(PLUGIN_NAME, "error", e);
+			Log.e(PLUGIN_NAME, "", e);
+			return false;
+		}
+		return true;
+	}
+	
+	/**
+	 * Builds a Proximity Zone based off of input params
+	 *
+	 * @param args				JSONArray of values to use as arguments when building the Proximity Zone
+	 * @return					Boolean value indicating successful creation of Proximity Zone
+	 */
+	private int buildProximityZone(JSONArray args, CallbackContext callbackContext) {
+		try {
+			int pid = args.getInt(0);
+			String attachmentKey = args.getString(1);
+			String attachmentValue = args.getString(2);
+			double rangeMode = args.getDouble(3);
+			
+			if (isValidPid(pid)) {
+				ProximityObserver.ProximityZoneAttachmentBuilder zoneAttachBuilder = proximityObservers.get(pid).zoneBuilder();
+				ProximityObserver.ProximityZoneRangeBuilder zoneRangeBuilder = null;
+				ProximityObserver.ProximityZoneBuilder zoneBuilder = null;
+				
+				zoneRangeBuilder = zoneAttachBuilder.forAttachmentKey(attachmentKey);
+				if (attachmentValue != null && attachmentValue != "null" && attachmentValue != "") {
+					zoneRangeBuilder = zoneAttachBuilder.forAttachmentKeyAndValue(attachmentKey, attachmentValue);
+				}
+
+				switch ((int)rangeMode) {
+					case -2: // near range
+						zoneBuilder = zoneRangeBuilder.inNearRange();
+						break;
+					case -1: // far range
+						zoneBuilder = zoneRangeBuilder.inFarRange();
+						break;
+					default: // custom range
+						zoneBuilder = zoneRangeBuilder.inCustomRange(rangeMode);
+				}
+				
+				zoneBuilder = zoneBuilder
+				.withOnEnterAction(new Function1<ProximityAttachment, Unit>() {
+					@Override 
+					public Unit invoke(ProximityAttachment proximityAttachment) {
+						Log.d(PLUGIN_NAME, "entered zone!");
+						Map<String, String> data = proximityAttachment.getPayload();
+						data.put("device_id", proximityAttachment.getDeviceId());
+						data.put("event", "enter");
+						PluginResult update = new PluginResult(Status.OK, mapToJSON(data).toString());
+						update.setKeepCallback(true);
+						callbackContext.sendPluginResult(update);
+						return null;
+					}
+				})
+				.withOnExitAction(new Function1<ProximityAttachment, Unit>() {
+					@Override 
+					public Unit invoke(ProximityAttachment proximityAttachment) {
+						Log.d(PLUGIN_NAME, "exited zone!");
+						Map<String, String> data = proximityAttachment.getPayload();
+						data.put("device_id", proximityAttachment.getDeviceId());
+						data.put("event", "exit");
+						PluginResult update = new PluginResult(Status.OK, mapToJSON(data).toString());
+						update.setKeepCallback(true);
+						callbackContext.sendPluginResult(update);
+						return null;
+					}
+				});
+				proximityZones.add(zoneBuilder.create());
+				proximityZoneCallbacks.add(callbackContext);
+				int zoneId = proximityZones.size()-1;
+				proximityZonesObserver.put(zoneId, new ArrayList<Integer>());
+				
+				return zoneId;
+			}
+		}
+		catch (JSONException e) {
+			Log.e(PLUGIN_NAME, "", e);
 		}
 		return -1;
 	}
@@ -215,10 +284,10 @@ public class EstimoteProximity extends CordovaPlugin {
 				
 				ProximityObserverBuilder proximityObserverBuilder = new ProximityObserverBuilder(appContext, cloudCredentials);
 				if (analyticsReportingDisabled) {
-					proximityObserverBuilder.withAnalyticsReportingDisabled();
+					proximityObserverBuilder = proximityObserverBuilder.withAnalyticsReportingDisabled();
 				}
 				if (estimoteSecureMonitoringDisabled) {
-					proximityObserverBuilder.withEstimoteSecureMonitoringDisabled();
+					proximityObserverBuilder = proximityObserverBuilder.withEstimoteSecureMonitoringDisabled();
 				}
 				if (scannerInForegroundService)  {
 					JSONArray notificationArgs = args.getJSONArray(5);
@@ -228,30 +297,29 @@ public class EstimoteProximity extends CordovaPlugin {
 					String notTitle = notificationArgs.getString(3);
 					String notText = notificationArgs.getString(4);
 					NotificationCreator notificationCreator = new NotificationCreator(chanId, chanName, chanDesc, notTitle, notText);
-					proximityObserverBuilder.withScannerInForegroundService(notificationCreator.createNotification(appContext));
+					proximityObserverBuilder = proximityObserverBuilder.withScannerInForegroundService(notificationCreator.createNotification(appContext));
 				}
 				if (telemetryReportingDisabled) {
-					proximityObserverBuilder.withTelemetryReportingDisabled();
+					proximityObserverBuilder = proximityObserverBuilder.withTelemetryReportingDisabled();
 				}
 				switch (powerMode) {
 					case 0: // low power mode
-						proximityObserverBuilder.withLowPowerMode();
+						proximityObserverBuilder = proximityObserverBuilder.withLowPowerMode();
 						break;
 					case 1: // low latency mode
-						proximityObserverBuilder.withLowLatencyPowerMode();
+						proximityObserverBuilder = proximityObserverBuilder.withLowLatencyPowerMode();
 						break;
 					default: // balanced mode
-						proximityObserverBuilder.withBalancedPowerMode();
+						proximityObserverBuilder = proximityObserverBuilder.withBalancedPowerMode();
 				}
 				
 				ProximityObserver proximityObserver = proximityObserverBuilder.build();
 				proximityObservers.add(proximityObserver);
-				proximityHandlers.add(null);
-				proximityCallbacks.add(null);
+				proximityObserverHandlers.add(null);
 				return proximityObservers.size()-1;
 			}
 			catch (JSONException e) {
-				Log.e(PLUGIN_NAME, "error", e);
+				Log.e(PLUGIN_NAME, "", e);
 			}
 		}
 		return -1;
@@ -267,26 +335,31 @@ public class EstimoteProximity extends CordovaPlugin {
 		try {
 			int pid = args.getInt(0);
 			if (isValidPid(pid)) {
-				if (proximityObservers.get(pid) != null) {
-					JSONArray zoneIds = args.getJSONArray(0);
-					List<ProximityZone> zones = new ArrayList();
-					for (int i = 0; i < zoneIds.length(); i++) {
-						int zoneId = zoneIds.getInt(i);
-						if (isValidZid(zoneId) {
-							zones.add(proximityZones.get(zoneId));
+				JSONArray zoneIds = args.getJSONArray(1);
+				List<ProximityZone> zones = new ArrayList();
+				for (int i = 0; i < zoneIds.length(); i++) {
+					int zoneId = zoneIds.getInt(i);
+					if (isValidZid(zoneId)) {
+						Log.i(PLUGIN_NAME, "Adding zone:"+zoneId+" to observer:"+Integer.toString(pid));
+						zones.add(proximityZones.get(zoneId));
+						List<Integer> zoneObserver = proximityZonesObserver.get(zoneId);
+						if (!zoneObserver.contains(pid)) {
+							zoneObserver.add(pid);
 						}
 					}
-					
-					proximityObservers.get(pid).addProximityZones(zones);
-					proximityHandlers.set(pid, proximityObservers.get(pid).start());
 				}
+				if (zones.size() == 0) {
+					return false;
+				}
+				proximityObservers.get(pid).addProximityZones(zones);
+				proximityObserverHandlers.set(pid, proximityObservers.get(pid).start());
 			}
 			else {
 				return false;
 			}
 		}
 		catch (JSONException e) {
-			Log.e(PLUGIN_NAME, "error", e);
+			Log.e(PLUGIN_NAME, "", e);
 			return false;
 		}
 		return true;
@@ -302,19 +375,16 @@ public class EstimoteProximity extends CordovaPlugin {
 		try {
 			int pid = args.getInt(0);
 			if (isValidPid(pid)) {
-				proximityHandlers.get(pid).stop();
-				proximityHandlers.set(pid, null);
+				proximityObserverHandlers.get(pid).stop();
+				proximityObserverHandlers.set(pid, null);
 				proximityObservers.set(pid, null);
-				PluginResult finish = new PluginResult(Status.NO_RESULT);
-                finish.setKeepCallback(false);
-                proximityCallbacks.get(pid).sendPluginResult(finish);
 			}
 			else {
 				return false;
 			}
 		}
 		catch (JSONException e) {
-			Log.e(PLUGIN_NAME, "error", e);
+			Log.e(PLUGIN_NAME, "", e);
 			return false;
 		}
 		return true;
@@ -328,6 +398,19 @@ public class EstimoteProximity extends CordovaPlugin {
 	 */
 	private boolean isValidPid(int pid) {
 		if (pid >= proximityObservers.size() || proximityObservers.get(pid) == null) {
+			return false;
+		}
+		return true;
+	}
+	
+	/**
+	 * Verifies if a Proximity Zone ID is valid
+	 *
+	 * @param zid					Proximity Zone ID to verify
+	 * @return						Boolean value indicating valid Zone ID of a Proximity Zone
+	 */
+	private boolean isValidZid(int zid) {
+		if (zid >= proximityZones.size() || proximityZones.get(zid) == null) {
 			return false;
 		}
 		return true;
@@ -359,7 +442,7 @@ public class EstimoteProximity extends CordovaPlugin {
 			cloudCredentials = new EstimoteCloudCredentials(appId, appToken);
 		}
 		catch (JSONException e) {
-			Log.e(PLUGIN_NAME, "error", e);
+			Log.e(PLUGIN_NAME, "", e);
 			return false;
 		}
 		return true;
@@ -425,7 +508,7 @@ public class EstimoteProximity extends CordovaPlugin {
 			}
 		}
 		catch (JSONException e) {
-			Log.e(PLUGIN_NAME, "error", e);
+			Log.e(PLUGIN_NAME, "", e);
 			return null;
 		}
 		return result;
