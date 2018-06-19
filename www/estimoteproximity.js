@@ -109,13 +109,19 @@ function EstimoteProximity() {
 		this.onEvent = function(resp) {
 			data = JSON.parse(resp);
 			if (data["event"] == "enter") {
-				self.onEnter(resp);
+				if (typeof(self.onEnter) == "function") {
+					self.onEnter(resp);
+				}
 			}
 			else if (data["event"] == "exit") {
-				self.onExit(resp);
+				if (typeof(self.onExit) == "function") {
+					self.onExit(resp);
+				}
 			}
 			else {
-				self.onSuccess(resp);
+				if (typeof(self.onSuccess) == "function") {
+					self.onSuccess(resp);
+				}
 			}
 		};
 		this.create = function() {
