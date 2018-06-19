@@ -156,6 +156,15 @@ function EstimoteProximity() {
 	this.deleteProximityZone = function(zoneId, onSuccess, onError) {
 		exec(onSuccess, onError, PLUGIN_NAME, 'deleteProximityZone', [zoneId]);
 	};
+	this.buildProximityTrigger = function(notification = [], onSuccess, onError) {
+		exec(onSuccess, onError, PLUGIN_NAME, 'buildProximityTrigger', [notification]);
+	};
+	this.startProximityTrigger = function(tid, onSuccess, onError) {
+		exec(onSuccess, onError, PLUGIN_NAME, 'startProximityTrigger', [tid]);
+	};
+	this.stopProximityTrigger = function(tid, onSuccess, onError) {
+		exec(onSuccess, onError, PLUGIN_NAME, 'stopProximityTrigger', [tid]);
+	};
 }
 
 EstimoteProximity.install = function() {

@@ -12,6 +12,9 @@ import android.app.NotificationManager;
 import android.R;
 import android.R.drawable;
 import android.support.v4.app.NotificationCompat.Builder;
+import android.content.Intent;
+import android.app.PendingIntent;
+import android.app.Activity;
 
 /**
  * This class will create proper Notification for given OS version.
@@ -38,9 +41,21 @@ public class NotificationCreator {
 		NOTIFICATION_TITLE = (notTitle == null || notTitle == "null" || notTitle == "") ? NOTIFICATION_TITLE : notTitle;
 		NOTIFICATION_TEXT = (notText == null || notText == "null" || notText == "") ? NOTIFICATION_TEXT : notText;
 	}
+	
+	public Notification createTriggerNotification(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) 
+			createNotificationChannel(context);
+        return new NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.drawable.arrow_up_float/*beacon_gray*/)
+                .setContentTitle(NOTIFICATION_TITLE)
+                .setContentText(NOTIFICATION_TEXT)
+                .setContentIntent(PendingIntent.getActivity(context, 234235, new Intent(context, EstimoteProximity.class), PendingIntent.FLAG_UPDATE_CURRENT))
+                .build();
+    }
 
     public Notification createNotification(Context context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) createNotificationChannel(context);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) 
+			createNotificationChannel(context);
         return new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.arrow_up_float/*beacon_gray*/)
                 .setContentTitle(NOTIFICATION_TITLE)

@@ -19,17 +19,22 @@
 var app = {
 	pids: [],
 	zids: [],
+	tids: [],
 	
     // Application Constructor
     initialize: function() {
         document.addEventListener('deviceready', this.onDeviceReady.bind(this), false);
 		document.addEventListener('pause', this.onAppMinimize.bind(this), false); // this won't work as expected on iOS
+		document.addEventListener('resume', this.onAppReopen.bind(this), false);
     },
 	
 	systemPermissionsFailed: function(info) {
 		console.log("The request for system permissions was denied or had an error!");
 		console.log(info);
 	},
+	
+	// Example of using scanner/beacon zones
+	
 	buildScanner: function(resp) {
 		console.log("Bluetooth service enabled: "+resp);
 		// build proximity scanner
@@ -46,7 +51,7 @@ var app = {
 	},
 	buildZones: function(resp) {
 		console.log("Proximity Scanner ID: "+resp);
-		app.pids.push(resp);
+		app.pids.push([resp, 0]);
 		window.plugins.EstimoteProximity.proximityZoneBuilder()
 		.forAttachmentKeyAndValue("zone", "desk")
 		.inNearRange()
@@ -54,7 +59,7 @@ var app = {
 		.withOnExitAction(app.onExitZone)
 		.withOnSuccessAction(app.startScanner)
 		.withOnErrorAction(app.buildZonesFailed)
-		.forProximityObserver(app.pids[0])
+		.forProximityObserver(app.pids[0][0])
 		.create();
 	},
 	buildZonesFailed: function(info) {
@@ -64,7 +69,7 @@ var app = {
 	startScanner: function(resp) {
 		console.log("Proximity Zone ID: "+resp);
 		app.zids.push(resp);
-		window.plugins.EstimoteProximity.startProximityObserver(app.pids[0], app.zids, app.scannerStarted, app.scannerFailed);
+		window.plugins.EstimoteProximity.startProximityObserver(app.pids[0][0], app.zids, app.scannerStarted, app.scannerFailed);
 	},
 	onEnterZone: function(info) {
 		console.log("User entered the zone!");
@@ -77,18 +82,54 @@ var app = {
 		document.getElementById("status").textContent = "exited";
 	},
 	scannerStarted: function(info) {
+		app.pids[0][1] = 1;
 		console.log("Proximity scanner started successfully!");
 	},
 	scannerFailed: function(info) {
 		console.log("Proximity scanner failed to start!");
 	},
 	
+	// Example of using triggers (requires Android 8.0+)
+	buildTrigger: function() {
+		window.plugins.EstimoteProximity.buildProximityTrigger([null, null, null, "Cordova Proximity Demo", "You walked in one of the beacon zones!"], app.triggerBuilt, app.triggerBuildFailed);
+	},
+	triggerBuildFailed: function(info) {
+		console.log("The request for building a proximity trigger failed!");
+		console.log(info);
+	},
+	triggerBuilt: function(resp) {
+		console.log("Proximity trigger successfully created with ID: "+resp);
+		app.tids.push(resp);
+		window.plugins.EstimoteProximity.startProximityTrigger(resp, app.triggerStarted, app.triggerStartFailed);
+	},
+	triggerStartFailed: function(info) {
+		console.log("The request for starting a proximity trigger failed!");
+		console.log(info);
+	},
+	triggerStarted: function(resp) {
+		console.log("Proximity trigger successfully started: "+resp);
+	},
+	
 	onAppMinimize: function() {
 		console.log("attempting to stop all Proximity Observers...");
 		for(i=0; i<app.pids.length; i++) {
-			window.plugins.EstimoteProximity.stopProximityObserver(app.pids[i], app.scannersStopped, app.scannersStoppedFailed);
+			if (app.pids[i][1] == 1) {
+				window.plugins.EstimoteProximity.stopProximityObserver(app.pids[i][0]);
+				app.pids[i][1] = 2;
+			}
 		}
 		console.log("finished stopping all Proximity Observers!");
+	},
+	
+	onAppReopen: function() {
+		console.log("attempting to restart all Proximity Observers that were closed...");
+		for(i=0; i<app.pids.length; i++) {
+			if (app.pids[i][1] == 2) {
+				window.plugins.EstimoteProximity.startProximityObserver(app.pids[i][0]);
+				app.pids[i][1] = 1;
+			}
+		}
+		console.log("finished starting all Proximity Observers!");
 	},
 
     // deviceready Event Handler

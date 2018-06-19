@@ -121,7 +121,7 @@ public class EstimoteProximity extends CordovaPlugin {
 				}
 			});
 		}
-		// Stop Proximity Observer
+		// Stop Proximity Observer Handler
 		else if ("stopProximityObserver".equals(action)) {
 			cordova.getThreadPool().execute(new Runnable() {
 				public void run() {
@@ -147,6 +147,30 @@ public class EstimoteProximity extends CordovaPlugin {
 				}
 			});
 		}
+		// Build Proximity Trigger
+		else if ("buildProximityTrigger".equals(action)) {
+			cordova.getThreadPool().execute(new Runnable() {
+				public void run() {
+					callbackContext.sendPluginResult(new PluginResult(Status.OK, buildProximityTrigger(args)));
+				}
+			});
+		}
+		// Start Proximity Trigger
+		else if ("startProximityTrigger".equals(action)) {
+			cordova.getThreadPool().execute(new Runnable() {
+				public void run() {
+					callbackContext.sendPluginResult(new PluginResult(Status.OK, startProximityTrigger(args)));
+				}
+			});
+		}
+		// Stop Proximity Trigger Handler
+		else if ("stopProximityTrigger".equals(action)) {
+			cordova.getThreadPool().execute(new Runnable() {
+				public void run() {
+					callbackContext.sendPluginResult(new PluginResult(Status.OK, stopProximityTriggerHandler(args)));
+				}
+			});
+		}
 		// endpoint doesn't exist
 		else {
 			return false;
@@ -158,7 +182,80 @@ public class EstimoteProximity extends CordovaPlugin {
 	/*** PLUGIN FUNCTIONS ***/
 	
 	/**
-	 * Delets a Proximity Zone and stops any Proximity Observers that may be monitoring that zone
+	 * Builds a Proximity Trigger Handler
+	 *
+	 * @param args				JSONArray of values to use as arguments when building the Proximity Zone
+	 * @return					Boolean value indicating successful building of a Proximity Trigger
+	 */
+	private int buildProximityTrigger(JSONArray args) {
+		try {
+			JSONArray notificationArgs = args.getJSONArray(0);
+			
+			String chanId = notificationArgs.getString(0);
+			String chanName = notificationArgs.getString(1);
+			String chanDesc = notificationArgs.getString(2);
+			String notTitle = notificationArgs.getString(3);
+			String notText = notificationArgs.getString(4);
+			NotificationCreator notificationCreator = new NotificationCreator(chanId, chanName, chanDesc, notTitle, notText);
+			ProximityTrigger trigger = new ProximityTriggerBuilder(appContext)
+			.displayNotificationWhenInProximity(notificationCreator.createTriggerNotification(appContext))
+			.build();
+			
+			proximityTriggers.add(trigger);
+			proximityTriggerHandlers.add(null);
+			return proximityTriggers.size()-1;
+		}
+		catch (JSONException e) {
+			Log.e(PLUGIN_NAME, "", e);
+		}
+		return -1;
+	}
+	
+	/**
+	 * Starts a Proximity Trigger Handler
+	 *
+	 * @param args				JSONArray of values to use as arguments when starting the Proximity Zone
+	 * @return					Boolean value indicating successful starting of a Proximity Trigger
+	 */
+	private boolean startProximityTrigger(JSONArray args) {
+		try {
+			int triggerId = args.getInt(0);
+			
+			if (isValidTid(triggerId)) {
+				proximityTriggerHandlers.set(triggerId, proximityTriggers.get(triggerId).start());
+			}
+		}
+		catch (JSONException e) {
+			Log.e(PLUGIN_NAME, "", e);
+			return false;
+		}
+		return true;
+	}
+	
+	/**
+	 * Stops a Proximity Trigger Handler
+	 *
+	 * @param args				JSONArray of values to use as arguments when stopping the Proximity Zone
+	 * @return					Boolean value indicating successful stopping of a Proximity Trigger
+	 */
+	private boolean stopProximityTriggerHandler(JSONArray args) {
+		try {
+			int triggerId = args.getInt(0);
+			
+			if (isValidTid(triggerId)) {
+				proximityTriggerHandlers.get(triggerId).stop();
+				proximityTriggerHandlers.set(triggerId, null);
+			}
+		}
+		catch (JSONException e) {
+			Log.e(PLUGIN_NAME, "", e);
+			return false;
+		}
+		return true;
+	}
+	
+	/**
+	 * Deletes a Proximity Zone and stops any Proximity Observers that may be monitoring that zone
 	 *
 	 * @param args				JSONArray of values to use as arguments when deleting the Proximity Zone
 	 * @return					Boolean value indicating successful deletion of Proximity Zone
@@ -377,7 +474,6 @@ public class EstimoteProximity extends CordovaPlugin {
 			if (isValidPid(pid)) {
 				proximityObserverHandlers.get(pid).stop();
 				proximityObserverHandlers.set(pid, null);
-				proximityObservers.set(pid, null);
 			}
 			else {
 				return false;
@@ -411,6 +507,13 @@ public class EstimoteProximity extends CordovaPlugin {
 	 */
 	private boolean isValidZid(int zid) {
 		if (zid >= proximityZones.size() || proximityZones.get(zid) == null) {
+			return false;
+		}
+		return true;
+	}
+	
+	private boolean isValidTid(int tid) {
+		if (tid >= proximityTriggers.size() || proximityTriggers.get(tid) == null) {
 			return false;
 		}
 		return true;

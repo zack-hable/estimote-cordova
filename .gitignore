@@ -1,0 +1,16 @@
+## Estimote Proximity Plugin
+/estimoteproximity/*.csproj.user
+/estimoteproximity/*.suo
+/estimoteproximity/*.cache
+/estimoteproximity/Thumbs.db
+/estimoteproximity/*.DS_Store
+/estimoteproximity/*.bak
+/estimoteproximity/*.cache
+/estimoteproximity/*.log
+/estimoteproximity/*.swp
+/estimoteproximity/*.user
+/estimoteproximity/node_modules
+## Demo App - Android
+# Non-project-specific build files:
+/example/demo/platforms
+/example/demo/node_modules
