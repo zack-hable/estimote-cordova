@@ -12,6 +12,11 @@
 * Location SDK
 * iOS Support
 ### Examples
+
+## Running Proximity Demo
+`git clone https://github.com/zack-hable/Estimote-Cordova-Examples.git`
 `cd example\demo`
 `cordova run android`
 
+## Adding to Your Project
+`cordova plugin add https://github.com/zack-hable/estimote-cordova.git`
