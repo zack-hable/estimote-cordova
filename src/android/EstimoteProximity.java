@@ -85,7 +85,7 @@ public class EstimoteProximity extends CordovaPlugin {
 		if ("getSystemPermissions".equals(action)) {
 			cordova.getThreadPool().execute(new Runnable() {
 				public void run() {
-					callbackContext.sendPluginResult(new PluginResult(Status.OK, getBluetoothPermissions()));
+					getBluetoothPermissions(callbackContext);
 				}
 			});
 		}
@@ -369,7 +369,8 @@ public class EstimoteProximity extends CordovaPlugin {
 	 */
 	private int buildProximityObserver(JSONArray args) {
 		if (!hasBluetoothAccess()) {
-			getBluetoothPermissions();
+			Log.w(PLUGIN_NAME, "Trying to make proximity observer without bluetooth permissions!");
+			return -1;
 		}
 		if (hasCloudCredentials()) {
 			try {
@@ -565,15 +566,15 @@ public class EstimoteProximity extends CordovaPlugin {
 	 *
 	 * @return						Boolean value indicating access to necessary system resources
 	 */
-	private boolean getBluetoothPermissions() {
+	private void getBluetoothPermissions(CallbackContext callbackContext) {
 		Log.d(PLUGIN_NAME, "Requesting access to system resources...");
 		RequirementsWizardFactory.createEstimoteRequirementsWizard().fulfillRequirements(
 			appActivity, 
 				new Function0<Unit>() {
 				@Override
 				public Unit invoke() {
-					/* start scanner */
 					hasBluetoothAccess = true;
+					callbackContext.sendPluginResult(new PluginResult(Status.OK, hasBluetoothAccess));
 					return null;
 				}
 			},
@@ -581,6 +582,7 @@ public class EstimoteProximity extends CordovaPlugin {
 				@Override
 				public Unit invoke(List<? extends Requirement> requirements) {
 					/* scanning won't work, handle this case in your app */
+					callbackContext.sendPluginResult(new PluginResult(Status.OK, hasBluetoothAccess));
 					return null;
 				}
 			},
@@ -588,11 +590,11 @@ public class EstimoteProximity extends CordovaPlugin {
 				@Override
 				public Unit invoke(Throwable throwable) {
 					/* Oops, some error occurred, handle it here! */
+					callbackContext.sendPluginResult(new PluginResult(Status.OK, hasBluetoothAccess));
 					return null;
 				}
 			}
 		);
-		return hasBluetoothAccess;
 	}
 	
 	/*** HELPER FUNCTIONS ***/
