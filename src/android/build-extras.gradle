@@ -22,4 +22,6 @@ dependencies {
     // Our support library with Android UI handy components. We will use EstimoteRequirementsWizard from there.
     compile 'com.estimote:mustard:0.2.1'
     implementation 'com.android.support:design:27.0.2'
+	// Alt Beacon Library (used for waking app)
+    compile 'org.altbeacon:android-beacon-library:2+'
 }
