@@ -17,6 +17,10 @@ module.exports = function(context) {
 				throw new Error('Unable to find EstimoteProximityApplication.java: ' + err);
 			}
 			var APPLICATION_CLASS = etree.getroot().attrib.id;
+			
+			if (APPLICATION_CLASS.endsWith(".MainActivity.class") == false) {
+				APPLICATION_CLASS += ".MainActivity.class";
+			}
 
 			var result = data.replace(/MAIN_ACTIVITY/g, APPLICATION_CLASS);
 
