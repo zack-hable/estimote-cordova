@@ -8,6 +8,8 @@ import java.util.HashMap;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 // Cordova Libs
 import org.apache.cordova.CordovaWebView;
 import org.apache.cordova.CallbackContext;
@@ -50,6 +52,8 @@ public class EstimoteProximity extends CordovaPlugin {
 	private static Map<Integer, List<Integer>> proximityZonesObserver = null;
 	private static List<ProximityTrigger> proximityTriggers = null;
 	private static List<ProximityTrigger.Handler> proximityTriggerHandlers = null;
+	private static final Lock observerMutex = new ReentrantLock(true);
+	private static final Lock zoneMutex = new ReentrantLock(true);
 	
 	/**
      * Sets the context of the Command. This can then be used to do things like
@@ -109,7 +113,16 @@ public class EstimoteProximity extends CordovaPlugin {
 		else if ("buildProximityObserver".equals(action)) {
 			cordova.getThreadPool().execute(new Runnable() {
 				public void run() {
-					callbackContext.sendPluginResult(new PluginResult(Status.OK, buildProximityObserver(args)));
+					observerMutex.lock();
+					try {
+						callbackContext.sendPluginResult(new PluginResult(Status.OK, buildProximityObserver(args)));
+					}
+					catch (Exception e) {
+						
+					}
+					finally {
+						observerMutex.unlock();
+					}
 				}
 			});
 		}
@@ -133,9 +146,18 @@ public class EstimoteProximity extends CordovaPlugin {
 		else if ("buildProximityZone".equals(action)) {
 			cordova.getThreadPool().execute(new Runnable() {
 				public void run() {
-					PluginResult start = new PluginResult(Status.OK, buildProximityZone(args, callbackContext));
-					start.setKeepCallback(true);
-					callbackContext.sendPluginResult(start);
+					zoneMutex.lock();
+					try {
+						PluginResult start = new PluginResult(Status.OK, buildProximityZone(args, callbackContext));
+						start.setKeepCallback(true);
+						callbackContext.sendPluginResult(start);
+					}
+					catch (Exception e) {
+						
+					}
+					finally {
+						zoneMutex.unlock();
+					}
 				}
 			});
 		}
