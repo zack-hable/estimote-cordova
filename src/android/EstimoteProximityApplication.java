@@ -22,7 +22,9 @@ public class EstimoteProximityApplication extends Application implements Bootstr
         // type.  Do a web search for "setBeaconLayout" to get the proper expression.
         beaconManager.getBeaconParsers().add(new BeaconParser()
 		.setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24"));
-
+		beaconManager.setBackgroundBetweenScanPeriod(45000);
+		beaconManager.setRegionStatePeristenceEnabled(false); // only use when debugging or possible for user to get multiple launches in location
+		Log.i(TAG, "background between scans: "+beaconManager.getBackgroundBetweenScanPeriod());
         // wake up the app when any beacon is seen (you can specify specific id filers in the parameters below)
         Region region = new Region("com.zackhable.estimote.beaconRegion", null, null, null);
         regionBootstrap = new RegionBootstrap(this, region);
@@ -39,7 +41,7 @@ public class EstimoteProximityApplication extends Application implements Bootstr
         // This call to disable will make it so the activity below only gets launched the first time a beacon is seen (until the next time the app is launched)
         // if you want the Activity to launch every single time beacons come into view, remove this call.  
         //regionBootstrap.disable();
-        Intent intent = new Intent(this, MainActivity.class);
+        Intent intent = new Intent(this, MAIN_ACTIVITY);
         // IMPORTANT: in the AndroidManifest.xml definition of this activity, you must set android:launchMode="singleInstance" or you will get two instances
         // created when a user launches the activity manually and it gets launched from here.
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
