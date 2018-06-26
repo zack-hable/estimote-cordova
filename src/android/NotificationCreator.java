@@ -50,6 +50,8 @@ public class NotificationCreator {
                 .setContentTitle(NOTIFICATION_TITLE)
                 .setContentText(NOTIFICATION_TEXT)
                 .setContentIntent(PendingIntent.getActivity(context, 234235, new Intent(context, EstimoteProximity.class), PendingIntent.FLAG_UPDATE_CURRENT))
+				.setPriority(Notification.PRIORITY_HIGH)
+				.setVibrate(new long[] {1000})
                 .build();
     }
 
@@ -60,6 +62,8 @@ public class NotificationCreator {
                 .setSmallIcon(R.drawable.arrow_up_float/*beacon_gray*/)
                 .setContentTitle(NOTIFICATION_TITLE)
                 .setContentText(NOTIFICATION_TEXT)
+				.setPriority(Notification.PRIORITY_HIGH)
+				.setVibrate(new long[] {1000})
                 .build();
     }
 

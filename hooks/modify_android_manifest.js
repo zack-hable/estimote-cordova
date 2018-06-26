@@ -4,6 +4,7 @@ module.exports = function(context) {
   console.log("Attempting to update AndroidManifest...");
   var APPLICATION_CLASS = "com.zackhable.estimote.EstimoteProximityApplication";
   var ACTIVITY_ATTRIBUTE = 'android:launchMode="singleInstance"';
+  var SERVICE = '<service android:enabled="true" android:exported="true" android:name="com.zackhable.estimote.EstimoteProximityService" />';
 
   var fs = context.requireCordovaModule('fs'),
       path = context.requireCordovaModule('path');
@@ -34,6 +35,10 @@ module.exports = function(context) {
         result = result.replace(/<activity/g, '<activity ' + ACTIVITY_ATTRIBUTE);
 		needsWrite = true;
       }
+	  // add service
+	  if (result.indexOf(SERVICE) == -1) {
+		result = result.replace(/<activity/g, SERVICE + '<activity');
+	  }
 	  
 	  if (needsWrite) {
 		fs.writeFile(manifestFile, result, 'utf8', function (err) {
