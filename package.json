@@ -1,6 +1,6 @@
 {
   "name": "cordova-estimote-proximity",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Estimote Proximity",
   "cordova": {
     "id": "cordova-estimote-proximity",
@@ -10,14 +10,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/zack-hable/estimote-cordova"
+    "url": "git+https://github.com/zack-hable/estimote-cordova.git"
   },
   "bugs": {
     "url": "https://github.com/zack-hable/estimote-cordova/issues"
   },
   "keywords": [
     "cordova",
-    "estimote"
+    "estimote",
+	"ecosystem:cordova",
+	"cordova-android"
   ],
   "scripts": {
     "test": "npm run eslint",
@@ -40,5 +42,7 @@
     "eslint-plugin-node": "^5.0.0",
     "eslint-plugin-promise": "^3.5.0",
     "eslint-plugin-standard": "^3.0.1"
-  }
+  },
+  "homepage": "https://github.com/zack-hable/estimote-cordova#readme",
+  "main": "www/estimoteproximity.js"
 }

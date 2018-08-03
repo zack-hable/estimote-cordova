@@ -22,7 +22,7 @@
     xmlns:rim="http://www.blackberry.com/ns/widgets"
     xmlns:android="http://schemas.android.com/apk/res/android"
     id="cordova-estimote-proximity"
-    version="0.1.2">
+    version="0.1.3">
     <name>EstimoteProximity</name>
     <description>Integrates Cordova with Estimote Proximity SDK</description>
     <license>Apache 2.0</license>
@@ -50,6 +50,10 @@
 		<framework src="src/android/build-extras.gradle" custom="true" type="gradleReference" />
         <source-file src="src/android/EstimoteProximity.java" target-dir="src/com/zackhable/estimote/" />
 		<source-file src="src/android/NotificationCreator.java" target-dir="src/com/zackhable/estimote/" />
+		<source-file src="src/android/EstimoteProximityApplication.java" target-dir="src/com/zackhable/estimote/" />
+		<source-file src="src/android/EstimoteProximityService.java" target-dir="src/com/zackhable/estimote/" />
+		<hook type="after_prepare" src="hooks/modify_android_manifest.js" />
+		<hook type="after_plugin_add" src="hooks/modify_application_class.js" />
     </platform>
 	
 </plugin>

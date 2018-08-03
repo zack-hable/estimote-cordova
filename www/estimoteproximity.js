@@ -57,21 +57,15 @@ function EstimoteProximity() {
 	function EstimoteProximityZoneBuilder() {
 		var self = this;
 		this.pid = -1;
-		this.attachKey = "";
-		this.attachValue = "";
+		this.tag = "";
 		this.rangeMode = -2;
 		this.onEnter = null;
 		this.onExit = null;
 		this.onSuccess = null;
 		this.onError = null;
 		
-		this.forAttachmentKey = function(key) {
-			this.attachKey = key;
-			return this;
-		};
-		this.forAttachmentKeyAndValue = function(key, value) {
-			this.attachKey = key;
-			this.attachValue = value;
+		this.forTag = function(tag) {
+			this.tag = tag;
 			return this;
 		};
 		this.inNearRange = function() {
@@ -125,7 +119,7 @@ function EstimoteProximity() {
 			}
 		};
 		this.create = function() {
-			window.plugins.EstimoteProximity.buildProximityZone(this.pid, this.attachKey, this.attachValue, this.rangeMode, this.onEvent, this.onError);
+			window.plugins.EstimoteProximity.buildProximityZone(this.pid, this.tag, this.rangeMode, this.onEvent, this.onError);
 		};
 	};
 	
@@ -153,8 +147,8 @@ function EstimoteProximity() {
 	this.stopProximityObserver = function(pid, onSuccess, onError) {
 		exec(onSuccess, onError, PLUGIN_NAME, 'stopProximityObserver', [pid]);
 	};
-	this.buildProximityZone = function(pid = -1, attachmentKey = "", attachmentValue = "", rangeMode = -2, onEvent, onError) {
-		exec(onEvent, onError, PLUGIN_NAME, 'buildProximityZone', [pid, attachmentKey, attachmentValue, rangeMode]);
+	this.buildProximityZone = function(pid = -1, tag = "", rangeMode = -2, onEvent, onError) {
+		exec(onEvent, onError, PLUGIN_NAME, 'buildProximityZone', [pid, tag, rangeMode]);
 	};
 	this.proximityZoneBuilder = function() {
 		return new EstimoteProximityZoneBuilder();
