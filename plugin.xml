@@ -51,6 +51,7 @@
         <source-file src="src/android/EstimoteProximity.java" target-dir="src/com/zackhable/estimote/" />
 		<source-file src="src/android/NotificationCreator.java" target-dir="src/com/zackhable/estimote/" />
 		<source-file src="src/android/EstimoteProximityApplication.java" target-dir="src/com/zackhable/estimote/" />
+		<source-file src="src/android/EstimoteProximityService.java" target-dir="src/com/zackhable/estimote/" />
 		<hook type="after_prepare" src="hooks/modify_android_manifest.js" />
 		<hook type="after_plugin_add" src="hooks/modify_application_class.js" />
     </platform>

@@ -33,7 +33,7 @@ import com.estimote.proximity_sdk.proximity.EstimoteCloudCredentials;
 import com.estimote.proximity_sdk.proximity.ProximityObserver;
 import com.estimote.proximity_sdk.proximity.ProximityObserverBuilder;
 import com.estimote.proximity_sdk.proximity.ProximityZone;
-import com.estimote.proximity_sdk.proximity.ProximityAttachment;
+import com.estimote.proximity_sdk.proximity.ProximityContext;
 import com.estimote.proximity_sdk.trigger.ProximityTrigger;
 import com.estimote.proximity_sdk.trigger.ProximityTriggerBuilder;
 
@@ -317,19 +317,15 @@ public class EstimoteProximity extends CordovaPlugin {
 	private int buildProximityZone(JSONArray args, CallbackContext callbackContext) {
 		try {
 			int pid = args.getInt(0);
-			String attachmentKey = args.getString(1);
-			String attachmentValue = args.getString(2);
-			double rangeMode = args.getDouble(3);
+			String tag = args.getString(1);
+			double rangeMode = args.getDouble(2);
 			
 			if (isValidPid(pid)) {
-				ProximityObserver.ProximityZoneAttachmentBuilder zoneAttachBuilder = proximityObservers.get(pid).zoneBuilder();
+				ProximityObserver.ProximityZoneTagBuilder zoneTagBuilder = proximityObservers.get(pid).zoneBuilder();
 				ProximityObserver.ProximityZoneRangeBuilder zoneRangeBuilder = null;
 				ProximityObserver.ProximityZoneBuilder zoneBuilder = null;
 				
-				zoneRangeBuilder = zoneAttachBuilder.forAttachmentKey(attachmentKey);
-				if (attachmentValue != null && attachmentValue != "null" && attachmentValue != "") {
-					zoneRangeBuilder = zoneAttachBuilder.forAttachmentKeyAndValue(attachmentKey, attachmentValue);
-				}
+				zoneRangeBuilder = zoneTagBuilder.forTag(tag);
 
 				switch ((int)rangeMode) {
 					case -2: // near range
@@ -343,12 +339,12 @@ public class EstimoteProximity extends CordovaPlugin {
 				}
 				
 				zoneBuilder = zoneBuilder
-				.withOnEnterAction(new Function1<ProximityAttachment, Unit>() {
+				.withOnEnterAction(new Function1<ProximityContext, Unit>() {
 					@Override 
-					public Unit invoke(ProximityAttachment proximityAttachment) {
+					public Unit invoke(ProximityContext proximityCtx) {
 						Log.d(PLUGIN_NAME, "entered zone!");
-						Map<String, String> data = proximityAttachment.getPayload();
-						data.put("device_id", proximityAttachment.getDeviceId());
+						Map<String, String> data = proximityCtx.getAttachments();
+						data.put("device_id", proximityCtx.getInfo().getDeviceId());
 						data.put("event", "enter");
 						PluginResult update = new PluginResult(Status.OK, mapToJSON(data).toString());
 						update.setKeepCallback(true);
@@ -356,12 +352,12 @@ public class EstimoteProximity extends CordovaPlugin {
 						return null;
 					}
 				})
-				.withOnExitAction(new Function1<ProximityAttachment, Unit>() {
+				.withOnExitAction(new Function1<ProximityContext, Unit>() {
 					@Override 
-					public Unit invoke(ProximityAttachment proximityAttachment) {
+					public Unit invoke(ProximityContext proximityCtx) {
 						Log.d(PLUGIN_NAME, "exited zone!");
-						Map<String, String> data = proximityAttachment.getPayload();
-						data.put("device_id", proximityAttachment.getDeviceId());
+						Map<String, String> data = proximityCtx.getAttachments();
+						data.put("device_id", proximityCtx.getInfo().getDeviceId());
 						data.put("event", "exit");
 						PluginResult update = new PluginResult(Status.OK, mapToJSON(data).toString());
 						update.setKeepCallback(true);

@@ -15,12 +15,12 @@ import com.estimote.proximity_sdk.proximity.EstimoteCloudCredentials;
 import com.estimote.proximity_sdk.proximity.ProximityObserver;
 import com.estimote.proximity_sdk.proximity.ProximityObserverBuilder;
 import com.estimote.proximity_sdk.proximity.ProximityZone;
-import com.estimote.proximity_sdk.proximity.ProximityAttachment;
+import com.estimote.proximity_sdk.proximity.ProximityContext;
 
 public class EstimoteProximityService extends Service {
 	
-	private static final String APP_ID = "<YOUR-APP-ID>";
-	private static final String APP_TOKEN = "<YOUR-APP-TOKEN>";
+	private static final String APP_ID = null; //"<YOUR-APP-ID>";
+	private static final String APP_TOKEN = null; //"<YOUR-APP-TOKEN>";
 	
 	private static final String SERVICE_TAG = "EstimoteProximityService";
 	private ProximityObserver.Handler proximityObservationHandler = null;
@@ -67,6 +67,10 @@ public class EstimoteProximityService extends Service {
 
     /* Used to build and start foreground service. */
     private void startForegroundService() {
+		if (APP_ID == null || APP_TOKEN == null) {
+			Log.d(SERVICE_TAG, "Unable to start foreground service due to having invalid Cloud Credentials");
+			return;
+		}
         Log.d(SERVICE_TAG, "Start foreground service.");
 		
 		EstimoteCloudCredentials cloudCredentials = new EstimoteCloudCredentials(APP_ID, APP_TOKEN);
