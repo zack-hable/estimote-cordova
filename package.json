@@ -17,7 +17,9 @@
   },
   "keywords": [
     "cordova",
-    "estimote"
+    "estimote",
+	"ecosystem:cordova",
+	"cordova-android"
   ],
   "scripts": {
     "test": "npm run eslint",

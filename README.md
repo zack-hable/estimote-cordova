@@ -24,7 +24,7 @@
 ## Adding to Your Project
 `cordova plugin add https://github.com/zack-hable/estimote-cordova.git`
 or from NPM
-`coming soon`
+`npm i cordova-estimote-proximity --save`
 
 If your app uses a foregroudn service (runs when your app is closed) then add your logic (and credentials) in [EstimoteProximityService.java](src/android/EstimoteProximityService.java)\
 otherwise it will not be enabled
